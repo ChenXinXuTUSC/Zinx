@@ -1,0 +1,8 @@
+*.out
+*.exe
+*.a
+*.log
+
+/build
+/log
+/data
