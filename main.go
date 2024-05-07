@@ -1,7 +1,7 @@
 package main
 
-import "zinx/utils"
+import "zinx/utils/log"
 
 func main() {
-	utils.Info("test sentence")
+	log.Info("test sentence")
 }

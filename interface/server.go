@@ -1,6 +1,6 @@
 package zinf
 
-type ZInfServer interface {
+type ZinfServer interface {
 	Start()
 	Stop()
 	Serve()

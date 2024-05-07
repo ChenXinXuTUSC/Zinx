@@ -7,12 +7,12 @@ import (
 	"sync"
 	"testing"
 	"time"
-	service "zinx/service"
+	core "zinx/core"
 )
 
 func TestMockClient(t *testing.T) {
 
-	s := service.NewServer("testserver", 7777)
+	s := core.NewServer("testserver", 7777)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go s.Serve()

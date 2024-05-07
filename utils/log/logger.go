@@ -1,4 +1,4 @@
-package utils
+package log
 
 import (
 	"fmt"
@@ -118,7 +118,7 @@ func LevelMark(lvl LogLevel) string {
 }
 
 func PrintDateTime(msgs []interface{}) []interface{} {
-	var newMsg string = time.Now().Format("2006/01/02 15:04:05")
+	var newMsg string = time.Now().Format("2006-01-02 15:04:05")
 	msgs = append(msgs, newMsg)
 	return msgs
 }
