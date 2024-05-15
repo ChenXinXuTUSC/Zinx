@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -18,9 +19,17 @@ type Logger struct {
 	PstAddOnIntps []AddOnIntp
 	LogFile       *os.File
 	DumpToFile    bool
+
+	mx sync.Mutex // don't print at the same time
 }
 
 func (lp *Logger) Log(format string, args ...interface{}) {
+	lp.mx.Lock()
+	defer lp.mx.Unlock()
+	lp.SlowLog(format, args...)
+}
+
+func (lp *Logger) SlowLog(format string, args ...interface{}) {
 	var msgs []interface{} = make([]interface{}, 0)
 
 	for _, addon := range lp.PreAddOnIntps {

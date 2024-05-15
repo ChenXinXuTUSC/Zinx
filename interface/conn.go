@@ -7,7 +7,7 @@ type ZinfConnection interface {
 	Stop()
 	GetTCPConnection() *net.TCPConn
 	GetConnID() uint32
-	RemoteAddr() net.Addr
+	GetRemoteAddr() net.Addr
 }
 
 type Handler func(*net.TCPConn, []byte, int) error

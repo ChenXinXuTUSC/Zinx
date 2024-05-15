@@ -12,16 +12,16 @@ type Connection struct {
 	Exit   chan bool // inform the conn has finished
 
 	isClosed bool
-	handler  zinf.Handler
+	router   zinf.ZinfRouter // handler method
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, callback zinf.Handler) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, router zinf.ZinfRouter) *Connection {
 	cp := &Connection{
-		Conn: conn,
-		ConnID: connID,
-		Exit: make(chan bool, 1),
+		Conn:     conn,
+		ConnID:   connID,
+		Exit:     make(chan bool, 1),
 		isClosed: false,
-		handler: callback,
+		router:   router,
 	}
 	return cp
 }
@@ -32,7 +32,7 @@ func (cp *Connection) Start() {
 
 	for {
 		select {
-		case <- cp.Exit:
+		case <-cp.Exit:
 			return
 		}
 	}
@@ -70,12 +70,17 @@ func (cp *Connection) ReadLoop() {
 			cp.Exit <- true
 			return
 		}
-		handlerErr := cp.handler(cp.Conn, rxbuf, rxLen)
-		if handlerErr != nil {
-			log.Erro("conn %d handler error", cp.ConnID, handlerErr.Error())
-			cp.Exit <- true
-			return
+
+		req := Request{
+			conn: cp,
+			data: rxbuf[:rxLen],
 		}
+		go func(request zinf.ZinfRequest) {
+			cp.router.PreProcess(request) // will invoke BaseRouter's empty method
+			cp.router.Handle(request)
+			cp.router.PostProcess(request) // will invoke BaseRouter's empty method
+		}(&req)
+
 	}
 }
 
@@ -88,4 +93,3 @@ func (cp *Connection) GetConnID() uint32 {
 func (cp *Connection) GetRemoteAddr() net.Addr {
 	return cp.Conn.RemoteAddr()
 }
-
