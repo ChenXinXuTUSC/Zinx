@@ -1,7 +1,7 @@
 package zinf
 
 type ZinfRouter interface {
-	PreProcess(ZinfRequest)
-	Handle(ZinfRequest)
-	PostProcess(ZinfRequest)
+	PreProcess(ZinfRequest) error
+	Handle(ZinfRequest) error
+	PostProcess(ZinfRequest) error
 }

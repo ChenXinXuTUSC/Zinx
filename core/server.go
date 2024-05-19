@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"net"
 	zinf "zinx/interface"
+	"zinx/utils/conf"
 	"zinx/utils/log"
 )
 
 type Server struct {
 	Name string // server name
+	Host string
+	Port uint32
 	AF   string // address family [IPv$, IPv6]
-	IP   string
-	Port int
 
 	Router zinf.ZinfRouter
 }
@@ -20,9 +21,9 @@ func (sp *Server) Start() {
 	// start a go routine for listening
 	go func() {
 		// try to resolve ip
-		addr, resolveErr := net.ResolveTCPAddr(sp.AF, fmt.Sprintf("%s:%d", sp.IP, sp.Port))
+		addr, resolveErr := net.ResolveTCPAddr(sp.AF, fmt.Sprintf("%s:%d", sp.Host, sp.Port))
 		if resolveErr != nil {
-			log.Erro(fmt.Sprintf("failed to resolve %s network address: %s:%d", sp.AF, sp.IP, sp.Port))
+			log.Erro(fmt.Sprintf("failed to resolve %s network address: %s:%d", sp.AF, sp.Host, sp.Port))
 			panic(resolveErr.Error())
 		}
 		// start listening
@@ -51,7 +52,7 @@ func (sp *Server) Start() {
 		}
 	}()
 
-	log.Info("server [%s] listening at %s:%d", sp.Name, sp.IP, sp.Port)
+	log.Info("server [%s] listening at %s:%d", sp.Name, sp.Host, sp.Port)
 }
 
 func (sp *Server) Stop() {
@@ -69,15 +70,15 @@ func (sp *Server) AddRouter(router zinf.ZinfRouter) {
 	log.Info("add router successfully")
 }
 
-func NewServer(name string, port int) zinf.ZinfServer {
+func NewServer() zinf.ZinfServer {
 	s := &Server{
-		Name: name,
+		Name: config.GlobalConfig.Name,
+		Host: config.GlobalConfig.Host,
+		Port: config.GlobalConfig.Port,
 		AF:   "tcp4",
-		IP:   "0.0.0.0",
-		Port: port,
 
 		Router: nil, // default no router
 	}
-
+	log.Info("%#v", *s)
 	return s // yes, you do can return a pointer as interface type
 }

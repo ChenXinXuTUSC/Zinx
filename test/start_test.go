@@ -12,7 +12,8 @@ import (
 )
 
 func TestMockClient(t *testing.T) {
-	s := core.NewServer("testserver", 7777)
+	// s := core.NewServer("testserver", 7777)
+	s := core.NewServer()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go s.Serve()
@@ -61,7 +62,8 @@ func TestMockClient(t *testing.T) {
 }
 
 func TestRouter(t *testing.T) {
-	s := core.NewServer("testserver", 7777)
+	// s := core.NewServer("testserver", 7777)
+	s := core.NewServer()
 	s.AddRouter(&service.PingRouter{})
 	var wg sync.WaitGroup
 	wg.Add(1)

@@ -6,7 +6,7 @@ import (
 
 type Request struct {
 	conn zinf.ZinfConnection
-	data []byte
+	msgi zinf.ZinfMessage
 }
 
 func (rp *Request) GetConnection() zinf.ZinfConnection {
@@ -14,5 +14,9 @@ func (rp *Request) GetConnection() zinf.ZinfConnection {
 }
 
 func (rp *Request) GetData() []byte {
-	return rp.data
+	return rp.msgi.GetData()
+}
+
+func (rp *Request) GetMsgId() uint32 {
+	return rp.msgi.GetMsgId()
 }

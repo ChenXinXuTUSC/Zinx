@@ -133,7 +133,7 @@ func PrintDateTime(msgs []interface{}) []interface{} {
 }
 
 func PrintFileLine(msgs []interface{}) []interface{} {
-	_, file, line, ok := runtime.Caller(4)
+	_, file, line, ok := runtime.Caller(5)
 	var newMsg string = ""
 	if !ok {
 		newMsg = "unknown stack"

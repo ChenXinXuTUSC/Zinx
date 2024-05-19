@@ -1,6 +1,8 @@
 package core
 
 import (
+	"errors"
+	"io"
 	"net"
 	zinf "zinx/interface"
 	"zinx/utils/log"
@@ -61,26 +63,43 @@ func (cp *Connection) ReadLoop() {
 	defer log.Info("conn %d finish listenning rx data", cp.ConnID)
 	defer cp.Stop()
 
-	var rxbuf []byte = make([]byte, 512)
+	var dataHandler = NewDataHandler()
 	for {
-		// read at most 512 bytes from conn
-		rxLen, rxErr := cp.Conn.Read(rxbuf)
-		if rxErr != nil {
-			log.Erro("conn %d read error", rxErr.Error())
+		var headData []byte = make([]byte, dataHandler.GetHeadLen())
+		if _, readHeadErr := io.ReadFull(cp.GetTCPConnection(), headData); readHeadErr != nil {
+			log.Erro("read head error: %s", readHeadErr.Error())
 			cp.Exit <- true
-			return
+			continue
 		}
+
+		msgp, unpackErr := dataHandler.DataUnpack(headData)
+		if unpackErr != nil {
+			log.Erro("unpack error: %s", unpackErr.Error())
+			cp.Exit <- true
+			continue
+		}
+
+		var data []byte = make([]byte, 0)
+		if msgp.GetDataLen() > 0 {
+			data = make([]byte, msgp.GetDataLen())
+			if _, readDataErr := io.ReadFull(cp.GetTCPConnection(), data); readDataErr != nil {
+				log.Erro("read data error: %s", readDataErr.Error())
+				cp.Exit <- true
+				continue
+			}
+		}
+		msgp.SetData(data)
 
 		req := Request{
 			conn: cp,
-			data: rxbuf[:rxLen],
+			msgi: msgp,
 		}
+
 		go func(request zinf.ZinfRequest) {
 			cp.router.PreProcess(request) // will invoke BaseRouter's empty method
 			cp.router.Handle(request)
 			cp.router.PostProcess(request) // will invoke BaseRouter's empty method
 		}(&req)
-
 	}
 }
 
@@ -92,4 +111,26 @@ func (cp *Connection) GetConnID() uint32 {
 }
 func (cp *Connection) GetRemoteAddr() net.Addr {
 	return cp.Conn.RemoteAddr()
+}
+
+func (cp *Connection) SendMsg(msgId uint32, data []byte) error {
+	if cp.isClosed {
+		log.Erro("write to a closed conn")
+		return errors.New("this connection has already been closed")
+	}
+
+	var dp = NewDataHandler()
+	packedData, packErr := dp.DataPack(NewMsg(msgId, data))
+	if packErr != nil {
+		log.Erro("pack msg data error: %s", packErr.Error())
+		return packErr
+	}
+
+	if _, txErr := cp.Conn.Write(packedData); txErr != nil {
+		log.Erro("erro sending data: %s", txErr.Error())
+		cp.Exit <- true
+		return txErr
+	}
+
+	return nil
 }
