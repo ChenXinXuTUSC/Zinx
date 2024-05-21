@@ -15,6 +15,7 @@ type Connection struct {
 
 	isClosed   bool
 	msgHandler zinf.ZinfMsgHandler
+	msgChan    chan []byte
 }
 
 func NewConnection(conn *net.TCPConn, connID uint32, msgHandler zinf.ZinfMsgHandler) *Connection {
@@ -24,13 +25,15 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler zinf.ZinfMsgHand
 		Exit:       make(chan bool, 1),
 		isClosed:   false,
 		msgHandler: msgHandler,
+		msgChan:    make(chan []byte),
 	}
 	return cp
 }
 
 func (cp *Connection) Start() {
 	// launch the data listenning loop
-	go cp.ReadLoop()
+	go cp.StartReader()
+	go cp.StartWriter()
 
 	for {
 		select {
@@ -56,19 +59,20 @@ func (cp *Connection) Stop() {
 	close(cp.Exit)
 }
 
-func (cp *Connection) ReadLoop() {
+func (cp *Connection) StartReader() {
 	// receive data from conn and transfer
 	// to user's handler callback
-	log.Info("conn %d start listenning rx data", cp.ConnID)
-	defer log.Info("conn %d finish listenning rx data", cp.ConnID)
+	log.Info("conn %d reader routine start", cp.ConnID)
 	defer cp.Stop()
 
 	var dataHandler = NewDataHandler()
 	for {
 		var headData []byte = make([]byte, dataHandler.GetHeadLen())
 		if _, readHeadErr := io.ReadFull(cp.GetTCPConnection(), headData); readHeadErr != nil {
-			log.Erro("read head error: %s", readHeadErr.Error())
-			cp.Exit <- true
+			if readHeadErr.Error() != "EOF" {
+				log.Erro("read head error: %s", readHeadErr.Error())
+				cp.Exit <- true
+			}
 			continue
 		}
 
@@ -99,6 +103,23 @@ func (cp *Connection) ReadLoop() {
 	}
 }
 
+func (cp *Connection) StartWriter() {
+	log.Info("conn %d writer routine start", cp.ConnID)
+	defer cp.Stop()
+
+	for {
+		select {
+		case data := <- cp.msgChan:
+			if _, txErr := cp.Conn.Write(data); txErr != nil {
+				log.Erro(txErr.Error())
+				return
+			}
+		case <- cp.Exit:
+			return
+		}
+	}
+}
+
 func (cp *Connection) GetTCPConnection() *net.TCPConn {
 	return cp.Conn
 }
@@ -110,6 +131,7 @@ func (cp *Connection) GetRemoteAddr() net.Addr {
 }
 
 func (cp *Connection) SendMsg(msgId uint32, data []byte) error {
+	// will invoked by other handler to send data
 	if cp.isClosed {
 		log.Erro("write to a closed conn")
 		return errors.New("this connection has already been closed")
@@ -122,11 +144,8 @@ func (cp *Connection) SendMsg(msgId uint32, data []byte) error {
 		return packErr
 	}
 
-	if _, txErr := cp.Conn.Write(packedData); txErr != nil {
-		log.Erro("erro sending data: %s", txErr.Error())
-		cp.Exit <- true
-		return txErr
-	}
+	// turn over the write business to writer goroutine
+	cp.msgChan <- packedData
 
 	return nil
 }
