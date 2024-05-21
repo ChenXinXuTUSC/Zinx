@@ -14,6 +14,7 @@ import (
 
 
 func TestPackUnPack(t *testing.T) {
+	// this test does not need a server instance
 	listener, listenErr := net.Listen("tcp", "127.0.0.1:7777")
 	if listenErr != nil {
 		log.Erro(listenErr.Error())

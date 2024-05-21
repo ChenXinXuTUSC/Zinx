@@ -14,7 +14,7 @@ type Server struct {
 	Port uint32
 	AF   string // address family [IPv$, IPv6]
 
-	Router zinf.ZinfRouter
+	msgHandler zinf.ZinfMsgHandler
 }
 
 func (sp *Server) Start() {
@@ -45,7 +45,7 @@ func (sp *Server) Start() {
 
 			// TODO: set the maximum number of connection
 			// bind the connection with a service handler function
-			newConn := NewConnection(conn, cid, sp.Router)
+			newConn := NewConnection(conn, cid, sp.msgHandler)
 			cid++
 
 			go newConn.Start()
@@ -65,9 +65,8 @@ func (sp *Server) Serve() {
 	sp.Stop()
 }
 
-func (sp *Server) AddRouter(router zinf.ZinfRouter) {
-	sp.Router = router
-	log.Info("add router successfully")
+func (sp *Server) AddRouter(msgId uint32, router zinf.ZinfRouter) {
+	sp.msgHandler.AddRouter(msgId, router)
 }
 
 func NewServer() zinf.ZinfServer {
@@ -77,7 +76,7 @@ func NewServer() zinf.ZinfServer {
 		Port: config.GlobalConfig.Port,
 		AF:   "tcp4",
 
-		Router: nil, // default no router
+		msgHandler: NewMsgHandler(),
 	}
 	log.Info("%#v", *s)
 	return s // yes, you do can return a pointer as interface type

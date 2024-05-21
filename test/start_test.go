@@ -64,7 +64,7 @@ func TestMockClient(t *testing.T) {
 func TestRouter(t *testing.T) {
 	// s := core.NewServer("testserver", 7777)
 	s := core.NewServer()
-	s.AddRouter(&service.PingRouter{})
+	s.AddRouter(0, &service.PingRouter{})
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go s.Serve()

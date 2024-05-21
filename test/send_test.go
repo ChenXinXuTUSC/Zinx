@@ -13,7 +13,7 @@ import (
 
 func TestSendMsg(t *testing.T) {
 	s := core.NewServer()
-	s.AddRouter(&service.PingRouter{})
+	s.AddRouter(0, &service.PingRouter{})
 	go s.Serve()
 	time.Sleep(1 * time.Second) // wait for server launch
 

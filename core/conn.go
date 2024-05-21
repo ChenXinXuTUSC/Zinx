@@ -13,17 +13,17 @@ type Connection struct {
 	ConnID uint32
 	Exit   chan bool // inform the conn has finished
 
-	isClosed bool
-	router   zinf.ZinfRouter // handler method
+	isClosed   bool
+	msgHandler zinf.ZinfMsgHandler
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, router zinf.ZinfRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, msgHandler zinf.ZinfMsgHandler) *Connection {
 	cp := &Connection{
-		Conn:     conn,
-		ConnID:   connID,
-		Exit:     make(chan bool, 1),
-		isClosed: false,
-		router:   router,
+		Conn:       conn,
+		ConnID:     connID,
+		Exit:       make(chan bool, 1),
+		isClosed:   false,
+		msgHandler: msgHandler,
 	}
 	return cp
 }
@@ -95,11 +95,7 @@ func (cp *Connection) ReadLoop() {
 			msgi: msgp,
 		}
 
-		go func(request zinf.ZinfRequest) {
-			cp.router.PreProcess(request) // will invoke BaseRouter's empty method
-			cp.router.Handle(request)
-			cp.router.PostProcess(request) // will invoke BaseRouter's empty method
-		}(&req)
+		go cp.msgHandler.DoMsgHandler(&req)
 	}
 }
 

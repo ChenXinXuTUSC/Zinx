@@ -31,12 +31,11 @@ type PingRouter struct {
 //	}
 func (rp *PingRouter) Handle(request zinf.ZinfRequest) error {
 	log.Info("PingRouter invoked")
-
 	log.Info("client data: msgId=%d, data=%s", request.GetMsgId(), string(request.GetData()))
 
 	// echo back
 	txErr := request.GetConnection().SendMsg(
-		1,
+		request.GetMsgId(),
 		[]byte(fmt.Sprintf("[server echo] %s", strings.ToUpper(string(request.GetData())))),
 	)
 	if txErr != nil {
@@ -67,3 +66,23 @@ func (rp *PingRouter) Handle(request zinf.ZinfRequest) error {
 
 // 	return nil
 // }
+
+type ZinxVerRouter struct {
+	core.BaseRouter
+}
+func (zp *ZinxVerRouter) Handle(request zinf.ZinfRequest) error {
+	log.Info("ZinxVerRouter invoked")
+	log.Info("client data: msgId=%d, data=%s", request.GetMsgId(), string(request.GetData()))
+
+	// echo back
+	txErr := request.GetConnection().SendMsg(
+		request.GetMsgId(),
+		[]byte(fmt.Sprintf("[server echo] %s", "ZinxVer 0.6")),
+	)
+	if txErr != nil {
+		log.Erro(txErr.Error())
+		return txErr
+	}
+
+	return nil
+}

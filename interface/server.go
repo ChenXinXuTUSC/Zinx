@@ -5,5 +5,5 @@ type ZinfServer interface {
 	Stop()
 	Serve()
 
-	AddRouter(router ZinfRouter)
+	AddRouter(msgId uint32, router ZinfRouter)
 }
