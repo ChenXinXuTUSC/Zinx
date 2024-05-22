@@ -15,19 +15,25 @@ func init() {
 		Port:    7777,
 		Version: "0.4",
 
-		MaxPacketSize: 4096,
-		MaxConn:       12000,
+		NumWorker: 10,
+		NumTaskMx: 1024,
+
+		MaxPacketSize: 2048,
+		MaxConn:       1024,
 	}
 	GlobalConfig.Reload()
+	log.Info("load config %+v", *GlobalConfig)
 }
 
 type Config struct {
-	Server zinf.ZinfServer `json:"-"`
+	Zinx    zinf.ZinfServer `json:"-"`
+	Name    string          `json:"name"`
+	Host    string          `json:"host"`
+	Port    uint32          `json:"port"`
+	Version string          `json:"version"`
 
-	Name    string `json:"name"`
-	Host    string `json:"host"`
-	Port    uint32   `json:"port"`
-	Version string `json:"version"`
+	NumWorker uint32 `json:"numworker"`
+	NumTaskMx uint32 `json:"numtaskmx"`
 
 	MaxPacketSize uint32
 	MaxConn       uint32

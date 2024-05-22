@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	zinf "zinx/interface"
+	config "zinx/utils/conf"
 	"zinx/utils/log"
 )
 
@@ -99,7 +100,12 @@ func (cp *Connection) StartReader() {
 			msgi: msgp,
 		}
 
-		go cp.msgHandler.DoMsgHandler(&req)
+		// turn over to worker pool or start one routine
+		if config.GlobalConfig.NumWorker > 0 {
+			cp.msgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			go cp.msgHandler.DoMsgHandler(&req) // temporary go routine
+		}
 	}
 }
 

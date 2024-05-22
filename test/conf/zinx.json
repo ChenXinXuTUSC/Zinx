@@ -2,5 +2,7 @@
     "name": "Zinx",
     "host": "127.0.0.1",
     "port": 7777,
-    "maxc": 3
+    "maxc": 3,
+    "numworker": 10,
+    "numtaskmx": 128
 }

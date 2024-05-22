@@ -20,6 +20,9 @@ type Server struct {
 func (sp *Server) Start() {
 	// start a go routine for listening
 	go func() {
+		// launch worker pool
+		sp.msgHandler.StartWorkerPool()
+		
 		// try to resolve ip
 		addr, resolveErr := net.ResolveTCPAddr(sp.AF, fmt.Sprintf("%s:%d", sp.Host, sp.Port))
 		if resolveErr != nil {
