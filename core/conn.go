@@ -10,24 +10,33 @@ import (
 )
 
 type Connection struct {
+	Server zinf.ZinfServer // belong to which
+
 	Conn   *net.TCPConn
 	ConnID uint32
 	Exit   chan bool // inform the conn has finished
 
 	isClosed   bool
 	msgHandler zinf.ZinfMsgHandler
-	msgChan    chan []byte
+	bioMsgChan chan []byte // blocking channel
+	nioMsgChan chan []byte // buffered channel
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler zinf.ZinfMsgHandler) *Connection {
+func NewConnection(server zinf.ZinfServer, conn *net.TCPConn, connID uint32, msgHandler zinf.ZinfMsgHandler) *Connection {
 	cp := &Connection{
+		Server:     server, // belong to which server
 		Conn:       conn,
 		ConnID:     connID,
 		Exit:       make(chan bool, 1),
 		isClosed:   false,
 		msgHandler: msgHandler,
-		msgChan:    make(chan []byte),
+
+		bioMsgChan: make(chan []byte),
+		nioMsgChan: make(chan []byte, config.GlobalConfig.MaxMsgBuffNum),
 	}
+
+	cp.Server.GetConnMgr().Add(cp)
+
 	return cp
 }
 
@@ -35,7 +44,8 @@ func (cp *Connection) Start() {
 	// launch the data listenning loop
 	go cp.StartReader()
 	go cp.StartWriter()
-
+	// invoke hook method
+	cp.Server.CallHookOnConnStart(cp)
 	for {
 		select {
 		case <-cp.Exit:
@@ -45,10 +55,13 @@ func (cp *Connection) Start() {
 }
 
 func (cp *Connection) Stop() {
+	log.Dbug("conn %d stop", cp.ConnID)
 	if cp.isClosed {
 		return // already closed
 	}
 	cp.isClosed = true
+
+	cp.Server.CallHookOnConnStop(cp)
 
 	// close the tcp connection
 	cp.Conn.Close()
@@ -56,8 +69,13 @@ func (cp *Connection) Stop() {
 	// inform that this conn is terminated
 	cp.Exit <- true
 
+	// remove this connection from server
+	cp.Server.GetConnMgr().Remove(cp)
+
 	// close channel
 	close(cp.Exit)
+	close(cp.bioMsgChan)
+	close(cp.nioMsgChan)
 }
 
 func (cp *Connection) StartReader() {
@@ -107,6 +125,8 @@ func (cp *Connection) StartReader() {
 			go cp.msgHandler.DoMsgHandler(&req) // temporary go routine
 		}
 	}
+
+	log.Info("conn reader chan exit")
 }
 
 func (cp *Connection) StartWriter() {
@@ -115,12 +135,28 @@ func (cp *Connection) StartWriter() {
 
 	for {
 		select {
-		case data := <- cp.msgChan:
-			if _, txErr := cp.Conn.Write(data); txErr != nil {
-				log.Erro(txErr.Error())
+		case data, ok := <- cp.bioMsgChan:
+			if ok {
+				if _, txErr := cp.Conn.Write(data); txErr != nil {
+					log.Erro(txErr.Error())
+					return
+				}
+			} else {
+				log.Erro("send on close channel")
 				return
 			}
-		case <- cp.Exit:
+		case data, ok := <- cp.nioMsgChan:
+			if ok {
+				if _, txErr := cp.Conn.Write(data); txErr != nil {
+					log.Erro(txErr.Error())
+					return
+				}
+			} else {
+				log.Erro("send on close channel")
+				return
+			}
+		case <-cp.Exit:
+			log.Info("conn writer chan exit")
 			return
 		}
 	}
@@ -136,7 +172,7 @@ func (cp *Connection) GetRemoteAddr() net.Addr {
 	return cp.Conn.RemoteAddr()
 }
 
-func (cp *Connection) SendMsg(msgId uint32, data []byte) error {
+func (cp *Connection) SendBioMsg(msgId uint32, data []byte) error {
 	// will invoked by other handler to send data
 	if cp.isClosed {
 		log.Erro("write to a closed conn")
@@ -151,7 +187,26 @@ func (cp *Connection) SendMsg(msgId uint32, data []byte) error {
 	}
 
 	// turn over the write business to writer goroutine
-	cp.msgChan <- packedData
+	cp.bioMsgChan <- packedData
+
+	return nil
+}
+func (cp *Connection) SendNioMsg(msgId uint32, data []byte) error {
+	// will invoked by other handler to send data
+	if cp.isClosed {
+		log.Erro("write to a closed conn")
+		return errors.New("this connection has already been closed")
+	}
+
+	var dp = NewDataHandler()
+	packedData, packErr := dp.DataPack(NewMsg(msgId, data))
+	if packErr != nil {
+		log.Erro("pack msg data error: %s", packErr.Error())
+		return packErr
+	}
+
+	// turn over the write business to writer goroutine
+	cp.nioMsgChan <- packedData
 
 	return nil
 }

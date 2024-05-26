@@ -20,6 +20,7 @@ func init() {
 
 		MaxPacketSize: 2048,
 		MaxConn:       1024,
+		MaxMsgBuffNum: 32,
 	}
 	GlobalConfig.Reload()
 	log.Info("load config %+v", *GlobalConfig)
@@ -37,6 +38,7 @@ type Config struct {
 
 	MaxPacketSize uint32
 	MaxConn       uint32
+	MaxMsgBuffNum uint32
 }
 
 var GlobalConfig *Config

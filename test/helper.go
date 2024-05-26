@@ -41,37 +41,43 @@ func MockClient(clientId, msgId uint32, msgData []byte) error {
 	}
 
 	// read echo
-	var headData []byte = make([]byte, dp.GetHeadLen())
-	if _, rxErr := io.ReadFull(conn, headData); rxErr != nil {
-		log.Erro("recv error: %s", rxErr.Error())
-		return rxErr
-	}
-
-	msg, unpackErr := dp.DataUnpack(headData)
-	if unpackErr != nil {
-		log.Erro("unpack error: %s", unpackErr.Error())
-		return unpackErr
-	}
-	var data []byte
-	if msg.GetDataLen() > 0 {
-		data = make([]byte, msg.GetDataLen())
-		if _, rxErr := io.ReadFull(conn, data); rxErr != nil {
-			log.Erro("recv error: %s", rxErr)
+	for {
+		var headData []byte = make([]byte, dp.GetHeadLen())
+		if _, rxErr := io.ReadFull(conn, headData); rxErr != nil {
+			log.Erro("recv error: %s", rxErr.Error())
 			return rxErr
 		}
-	}
-	msg.SetData(data)
 
-	if data == nil {
-		log.Erro("no valid data")
-		return errors.New("no valid data")
-	}
-	if msg.GetMsgId() != msgId {
-		log.Erro("msg type mismatched")
-		return errors.New("msg type mismatched")
-	}
+		msg, unpackErr := dp.DataUnpack(headData)
+		if unpackErr != nil {
+			log.Erro("unpack error: %s", unpackErr.Error())
+			return unpackErr
+		}
+		var data []byte
+		if msg.GetDataLen() > 0 {
+			data = make([]byte, msg.GetDataLen())
+			if _, rxErr := io.ReadFull(conn, data); rxErr != nil {
+				log.Erro("recv error: %s", rxErr)
+				return rxErr
+			}
+		}
+		msg.SetData(data)
 
-	log.Info("client%d recv: type %d, len %d", msg.GetMsgId(), msg.GetDataLen())
+		if data == nil {
+			log.Erro("no valid data")
+			return errors.New("no valid data")
+		}
+		if msg.GetMsgId() == 2 {
+			log.Info("client#%d recv: type %d, len %d", clientId, msg.GetMsgId(), msg.GetDataLen())
+			break
+		}
+		if msg.GetMsgId() != msgId {
+			log.Erro("msg type mismatched")
+			return errors.New("msg type mismatched")
+		}
+
+		log.Info("client#%d recv: type %d, len %d", clientId, msg.GetMsgId(), msg.GetDataLen())
+	}
 
 	return nil
 }

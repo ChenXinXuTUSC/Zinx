@@ -30,16 +30,18 @@ type PingRouter struct {
 //		return nil
 //	}
 func (rp *PingRouter) Handle(request zinf.ZinfRequest) error {
-	log.Info("PingRouter invoked")
+	log.Info("echo handler invoked")
 
 	// echo back
-	txErr := request.GetConnection().SendMsg(
-		request.GetMsgId(),
-		[]byte(fmt.Sprintf("[server echo] %s", strings.ToUpper(string(request.GetData())))),
-	)
-	if txErr != nil {
-		log.Erro(txErr.Error())
-		return txErr
+	for i := 0; i < 2; i++ {
+		txErr := request.GetConnection().SendBioMsg(
+			request.GetMsgId(),
+			[]byte(fmt.Sprintf("[server echo %d/2] %s", i+1, strings.ToUpper(string(request.GetData())))),
+		)
+		if txErr != nil {
+			log.Erro(txErr.Error())
+			return txErr
+		}
 	}
 
 	return nil
@@ -66,16 +68,35 @@ func (rp *PingRouter) Handle(request zinf.ZinfRequest) error {
 // 	return nil
 // }
 
-type ZinxVerRouter struct {
+type VersionRouter struct {
 	core.BaseRouter
 }
-func (zp *ZinxVerRouter) Handle(request zinf.ZinfRequest) error {
-	log.Info("ZinxVerRouter invoked")
+func (vp *VersionRouter) Handle(request zinf.ZinfRequest) error {
+	log.Info("version handler invoked")
 
 	// echo back
-	txErr := request.GetConnection().SendMsg(
+	txErr := request.GetConnection().SendBioMsg(
 		request.GetMsgId(),
 		[]byte(fmt.Sprintf("[server echo] %s", "ZinxVer 0.6")),
+	)
+	if txErr != nil {
+		log.Erro(txErr.Error())
+		return txErr
+	}
+
+	return nil
+}
+
+type HookRouter struct {
+	core.BaseRouter
+}
+func (hp *HookRouter) Handle(request zinf.ZinfRequest) error {
+	log.Info("hook handler invoked")
+
+	// echo back
+	txErr := request.GetConnection().SendBioMsg(
+		request.GetMsgId(),
+		[]byte(fmt.Sprintf("[server hook] %s", string(request.GetData()))),
 	)
 	if txErr != nil {
 		log.Erro(txErr.Error())

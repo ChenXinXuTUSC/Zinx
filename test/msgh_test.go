@@ -11,7 +11,7 @@ import (
 func TestMsgHandler(t *testing.T) {
 	s := core.NewServer()
 	s.AddRouter(0, &service.PingRouter{})
-	s.AddRouter(1, &service.ZinxVerRouter{})
+	s.AddRouter(1, &service.VersionRouter{})
 	go s.Serve()
 	time.Sleep(1 * time.Second) // wait for server launch
 

@@ -15,6 +15,26 @@ type Server struct {
 	AF   string // address family [IPv$, IPv6]
 
 	msgHandler zinf.ZinfMsgHandler
+
+	connMgr zinf.ZinfConnManager
+
+	// store user's hook func
+	hookOnConnStart func(zinf.ZinfConnection)
+	hookOnConnStop func(zinf.ZinfConnection)
+}
+
+func NewServer() zinf.ZinfServer {
+	s := &Server{
+		Name: config.GlobalConfig.Name,
+		Host: config.GlobalConfig.Host,
+		Port: config.GlobalConfig.Port,
+		AF:   "tcp4",
+
+		msgHandler: NewMsgHandler(),
+		connMgr: NewConnManager(),
+	}
+	log.Info("%#v", *s)
+	return s // yes, you do can return a pointer as interface type
 }
 
 func (sp *Server) Start() {
@@ -46,9 +66,14 @@ func (sp *Server) Start() {
 				continue
 			}
 
+			if sp.connMgr.GetConnNum() >= int(config.GlobalConfig.MaxConn) {
+				conn.Close()
+				continue
+			}
+
 			// TODO: set the maximum number of connection
 			// bind the connection with a service handler function
-			newConn := NewConnection(conn, cid, sp.msgHandler)
+			newConn := NewConnection(sp, conn, cid, sp.msgHandler)
 			cid++
 
 			go newConn.Start()
@@ -60,6 +85,7 @@ func (sp *Server) Start() {
 
 func (sp *Server) Stop() {
 	log.Info(sp.Name, "stop...")
+	sp.connMgr.ClearAll()
 }
 
 func (sp *Server) Serve() {
@@ -72,15 +98,27 @@ func (sp *Server) AddRouter(msgId uint32, router zinf.ZinfRouter) {
 	sp.msgHandler.AddRouter(msgId, router)
 }
 
-func NewServer() zinf.ZinfServer {
-	s := &Server{
-		Name: config.GlobalConfig.Name,
-		Host: config.GlobalConfig.Host,
-		Port: config.GlobalConfig.Port,
-		AF:   "tcp4",
+func (sp *Server) GetConnMgr() zinf.ZinfConnManager {
+	return sp.connMgr
+}
 
-		msgHandler: NewMsgHandler(),
+func (sp *Server) SetHookOnConnStart(hookFn func (zinf.ZinfConnection)) {
+	sp.hookOnConnStart = hookFn
+	log.Dbug("start hook fn addr: %p", sp.hookOnConnStart)
+}
+func (sp *Server) SetHookOnConnStop(hookFn func (zinf.ZinfConnection)) {
+	sp.hookOnConnStop = hookFn
+	log.Dbug("stop hook fn addr: %p", sp.hookOnConnStop)
+}
+func (sp *Server) CallHookOnConnStart(conn zinf.ZinfConnection) {
+	if sp.hookOnConnStart != nil {
+		log.Info("===========> call hook on conn start")
+		sp.hookOnConnStart(conn)
 	}
-	log.Info("%#v", *s)
-	return s // yes, you do can return a pointer as interface type
+}
+func (sp *Server) CallHookOnConnStop(conn zinf.ZinfConnection) {
+	if sp.hookOnConnStop != nil {
+		log.Info("===========> call hook on conn stop")
+		sp.hookOnConnStop(conn)
+	}
 }
